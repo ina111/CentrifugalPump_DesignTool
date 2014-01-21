@@ -134,6 +134,11 @@ class Pump(object):
         self.v1 = self.rpm **(2./3) * self.flow_Q **(1./3) / 57.35
         self.Ds = 1.1 / np.sqrt(1 - self.hubratio**2) * (self.flow_Q / self.rpm)**(1./3)
         self.Dh = self.Ds * self.hubratio
+        
+        """ test program """
+        self.w1 = self.v1 / np.sin(np.deg2rad(self.beta1))
+        self.head_sv2 = self.rambda1 * self.w1**2 / 2 / self.g\
+                        + self.rambda2 * self.v1**2/ 2 / self.g
     
     def _func(self, x):
         return self.sigma * x**3 - 0.5 * x - self.chi**2 / np.tan(np.deg2rad(self.beta2))
@@ -199,6 +204,7 @@ class Pump(object):
         print "Total Head H:\t%.2f (m)" % (self.head_total)
         print "Specific Speed Ns:\t%.1f (m min)" % (self.Ns)
         print "Type Number K:\t%.2f" % (self.type_number)
+        
         print "---- Impeller inlet design ----"
         print "NPSH:\t\t%.2f (m)" % (self.NPSH)
         print "tan(beta1):\t\t%.3f" % (self.tanbeta1)
@@ -207,8 +213,11 @@ class Pump(object):
         print "Required NPSH Hsv:\t%.2f (m)" % (self.head_sv)
         print "Coef of Hsv: \t%.2f" % (self.coef_head_sv)
         print "Inlet v1:\t\t%.3f (m/s)" % (self.v1)
+        print "Inlet w1:\t\t%.3f (m/s)" % (self.w1)
+#        print "Hsv from(18):\t%.2f (m)" % (self.head_sv2)
         print "Diameter shroud Ds:\t%.2f (mm)" % (self.Ds * 1000)
         print "Diameter hub Dh:\t%.2f (mm)" % (self.Dh * 1000)
+        
         print "---- Impeller outlet design ----"
         print "sqrt(D2/B2):\t%.2f" % (self.sqrtD2B2)
         print "Theoretical Ns_th:\t%.2f" % (self.Ns_th)
@@ -222,6 +231,7 @@ class Pump(object):
         print "Ka:\t\t%.3f" % (self.Ka)
         print "Kw:\t\t%.3f" % (self.Kw)
         print "Outer alpha2:\t%.2f (deg)" % (self.alpha2)
+        
         print "---- Volute casing design ----"
         print "Volute Radius R3:\t%.2f (mm)" % (self.R3 * 1000)
         print "Volute Width B3:\t%.2f (mm)" % (self.B3 * 1000)
@@ -299,6 +309,7 @@ class Pump(object):
         plt.show()
         
 def main():
+    plt.close('all')
     rocket = Rocket(200000, 230, 1.6)
     rocket.culc()
     rocket.show()
