@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """
+遠心ポンプの設計ツール。参考値として、エタノール／液体酸素エンジンを想定。
+単段の遠心ポンプにのみ対応している。このツールは概算にのみ使用可能。
+Cf. ポンプ設計の基礎　武田裕久
 Centrifugal Pump design tool with EA/LOX engine
 Only use for Sigle-stage certrifugal pump.
 It is limited the use of approximate culcuration.
 This script is New BSD License.
 cf. Basic Design on Pumps by Hirohisa Takeda
 """
-__author__ = "Takahiro Inagawa <ina111meister_at_gmail.com>"
-__status__ = "beta"
-__version__ = "0.0.1"
-__date__    = "20 January 2014"
+from __future__ import unicode_literals
+from __future__ import print_function
+from __future__ import division
 
 import numpy as np
 import scipy as sp
@@ -20,40 +22,46 @@ import matplotlib.pyplot as plt
 #from matplotlib.font_manager import FontProperties
 #fp = FontProperties(fname=r'C:\WINDOWS\Fonts\TakaoPGothic.ttf') # HG ゴシック系
 
+__author__ = "Takahiro Inagawa <ina111meister_at_gmail.com>"
+__status__ = "beta"
+__version__ = "0.0.2"
+__date__    = "20 January 2014"
+
+
 class Rocket(object):
     """
     Hydrocarbon Rocket Engine Class
-    It output mass flow rate when "thrust, Isp and O/F" are determined. 
+    It output mass flow rate when "thrust, Isp and O/F" are determined.
     """
     def __init__(self, thrust, Isp, OFratio):
         self.g = 9.8066 #Gravitational acceleration
         self.thrust = thrust
         self.Isp = Isp
         self.OFratio = OFratio
-        
+
         # It must change when propellant is changed.
         self.density_LOX = 1140.0 # kg/m3
         self.density_EA = 789.0 # kg/m3
         self.density_water = 1000.0 # kg/m3
-        
-    def culc(self):        
+
+    def culc(self):
         self.mdot_proppelant = self.thrust / self.Isp / self.g
         self.mdot_oxidant = self.mdot_proppelant * (self.OFratio / (self.OFratio + 1))
         self.flow_oxidant = self.mdot_oxidant / self.density_LOX
         self.mdot_fuel = self.mdot_proppelant * (1 / (self.OFratio + 1))
         self.flow_fuel = self.mdot_fuel / self.density_EA
-        
+
     def show(self):
-        print "==== Rocket Engine ===="
-        print "Thrust:\t\t%d (N)" % (self.thrust)
-        print "Isp:\t\t%d (sec)" % (self.Isp)
-        print "O/F:\t\t%.2f " % (self.OFratio)
-        print "Proppelant mass flow:\t%.2f (kg/s)" % (self.mdot_proppelant)
-        print "Oxidant mass flow:\t%.2f (kg/s)" % (self.mdot_oxidant)
-        print "Oxidant flow Q:\t%.4f (m3/s)" % (self.flow_oxidant)
-        print "Fuel mass flow:\t%.2f (kg/s)" % (self.mdot_fuel)
-        print "Fuel flow Q:\t%.4f (m3/s)" % (self.flow_fuel)
-        
+        print("==== ロケットエンジン ====")
+        print("推力:\t\t%d (N)" % (self.thrust))
+        print("Isp:\t\t%d (sec)" % (self.Isp))
+        print("O/F:\t\t%.2f " % (self.OFratio))
+        print("推進剤質量流量:\t%.2f (kg/s)" % (self.mdot_proppelant))
+        print("酸化剤質量流量:\t%.2f (kg/s)" % (self.mdot_oxidant))
+        print("酸化剤流量Q:\t%.4f (m3/s)" % (self.flow_oxidant))
+        print("燃料質量流量:\t%.2f (kg/s)" % (self.mdot_fuel))
+        print("燃料流量Q:\t%.4f (m3/s)" % (self.flow_fuel))
+
 class Pump(object):
     """
     Centrifugal Pump Class
@@ -73,9 +81,9 @@ class Pump(object):
         self.rpm = 16000
         self.press_out = 3.0 #MPa
         self.flow_q = 0.04 #m3/s
-        
+
         self.head_total = self.press_out / self.density / rocket.g * (10 ** 6)
-        
+
         self.press_in = 0.1 #MPa
         self.head_loss = 3 #m
         self.head_v = 1.046862 #m
@@ -90,11 +98,11 @@ class Pump(object):
         self.rambda1 = 0.25
         self.rambda2 = 1.1
         self.hubratio = 0.5
-        """ Impeler outlet """        
+        """ Impeler outlet """
         self.Z = 5
         self.beta2 = 25
         self.R1R2ratio = 0.3
-        
+
     def culc_Ns(self):
         """
         Culcurate Specific speed Ns and type number
@@ -103,7 +111,7 @@ class Pump(object):
         self.flow_Q = self.flow_q * 60
         self.Ns = self.rpm * (self.flow_Q ** 0.5) / (self.head_total ** 0.75)
         self.type_number = self.omega * self.flow_q**0.5 / (self.g * self.head_total)**0.75
-        
+
     def design_size(self):
         """
         Culcurate inner diameter and radius
@@ -111,38 +119,38 @@ class Pump(object):
         self.D1 = self.D2 * self.R1R2ratio
         self.R2 = self.D2 / 2
         self.R1 = self.D1 / 2
-        
+
     def design_inlet(self):
         """
         design impeller inlet
         """
         self.head_th = self.head_total / self.eta_h
         self.Ns_th = self.rpm * (self.flow_Q ** 0.5) / (self.head_th ** 0.75)
-        
+
         self.head_a = self.press_in / self.g / self.density * 10**6
         self.NPSH = self.head_a - self.height_pump - self.head_loss - self.head_v
-        
+
         self.tanbeta1 = (self.rambda1 / 2 / (self.rambda1 + self.rambda2)) **(0.5)
         self.beta1 = np.rad2deg(np.arctan(self.tanbeta1))
         self.S = 757.7 * (1 - self.hubratio**2)**0.5 \
                  / ((self.rambda1**0.5) * (self.rambda1+self.rambda2)**0.25)
         self.head_sv = (1.0/60)**2 * (4*np.pi)**(2./3) / 2 / self.g \
                        * (self.rpm * np.sqrt(self.flow_Q) / (np.sqrt(1 - self.hubratio**2)) * self.tanbeta1) \
-                       * (self.rambda2 + self.rambda1 + self.rambda1 / self.tanbeta1 **2) 
+                       * (self.rambda2 + self.rambda1 + self.rambda1 / self.tanbeta1 **2)
         self.coef_head_sv = (self.rambda1 / np.sin(np.deg2rad(self.beta1))**2 \
                             + self.rambda2) / 2 / self.g
         self.v1 = self.rpm **(2./3) * self.flow_Q **(1./3) / 57.35
         self.Ds = 1.1 / np.sqrt(1 - self.hubratio**2) * (self.flow_Q / self.rpm)**(1./3)
         self.Dh = self.Ds * self.hubratio
-        
+
         """ test program """
         self.w1 = self.v1 / np.sin(np.deg2rad(self.beta1))
         self.head_sv2 = self.rambda1 * self.w1**2 / 2 / self.g\
                         + self.rambda2 * self.v1**2/ 2 / self.g
-    
+
     def _func(self, x):
         return self.sigma * x**3 - 0.5 * x - self.chi**2 / np.tan(np.deg2rad(self.beta2))
-        
+
     def design_outlet(self):
         """
         design impeller outlet
@@ -175,10 +183,10 @@ class Pump(object):
         self.vu2 = self.Kc * self.sqrt2gHth
         self.v2 = self.Ka * self.sqrt2gHth
         self.w2 = self.Kw * self.sqrt2gHth
-            
+
     def _func2(self, x):
         return self.vu2 * self.R2 * x**2 - self.flow_Q/120 * x - self.R3 * self.flow_Q/60
-    
+
     def design_volute(self):
         """
         design volute casing
@@ -189,73 +197,77 @@ class Pump(object):
         self.Hth_impeller = self.u2\
                             * (self.sigma * self.u2 - self.vm2 / np.tan(np.deg2rad(self.beta2))) / self.g
         self.Hth_volute = np.pi * self.rpm\
-                          / (1800*self.g*self.B3*np.log(1+self.T/self.R3))* self.flow_Q        
+                          / (1800*self.g*self.B3*np.log(1+self.T/self.R3))* self.flow_Q
         self.flow_Q_max = 60 * self.sigma * self.u2 * (1/(np.pi*self.D2*self.B2*np.tan(np.deg2rad(self.beta2)))\
                           + 1/(self.R2*self.B3*np.log(1+self.T/self.R3)))**-1
-        
+
     def show(self):
-        print "==== Centrifugal Pump ====="
-        print "Working fluid densigy:\t%d (kg/m3)" % (self.density)
-        print "Rotation speed N:\t%d (rpm)" % (self.rpm)
-        print "Potation speed N:\t%.1f (rad/s)" % (self.omega)
-        print "Pump out pressure:\t%.1f (MPa)" % (self.press_out)
-        print "Mass flow Q:\t%.2f (m3/min)" % (self.flow_Q)
-        print "Mass flow q:\t%.2f (m3/sec)" % (self.flow_q)
-        print "Total Head H:\t%.2f (m)" % (self.head_total)
-        print "Specific Speed Ns:\t%.1f (m min)" % (self.Ns)
-        print "Type Number K:\t%.2f" % (self.type_number)
-        
-        print "---- Impeller inlet design ----"
-        print "NPSH:\t\t%.2f (m)" % (self.NPSH)
-        print "tan(beta1):\t\t%.3f" % (self.tanbeta1)
-        print "Inlet beta1:\t%.2f (deg)" % (self.beta1)
-        print "suction sp. speed S:\t%.2f" % (self.S)
-        print "Required NPSH Hsv:\t%.2f (m)" % (self.head_sv)
-        print "Coef of Hsv: \t%.2f" % (self.coef_head_sv)
-        print "Inlet v1:\t\t%.3f (m/s)" % (self.v1)
-        print "Inlet w1:\t\t%.3f (m/s)" % (self.w1)
-#        print "Hsv from(18):\t%.2f (m)" % (self.head_sv2)
-        print "Diameter shroud Ds:\t%.2f (mm)" % (self.Ds * 1000)
-        print "Diameter hub Dh:\t%.2f (mm)" % (self.Dh * 1000)
-        
-        print "---- Impeller outlet design ----"
-        print "sqrt(D2/B2):\t%.2f" % (self.sqrtD2B2)
-        print "Theoretical Ns_th:\t%.2f" % (self.Ns_th)
-        print "Slip factor sigma:\t%.2f" % (self.sigma)
-        print "Parameter chi:\t%.2f" % (self.chi)
-        print "Outer diameter D2:\t%.2f (mm)" % (self.D2 * 1000)
-        print "Outer width B2:\t%.2f (mm)" % (self.B2 * 1000)
-        print "Ku:\t\t%.3f" % (self.Ku)
-        print "Kc:\t\t%.3f" % (self.Kc)
-        print "Km:\t\t%.3f" % (self.Km)
-        print "Ka:\t\t%.3f" % (self.Ka)
-        print "Kw:\t\t%.3f" % (self.Kw)
-        print "Outer alpha2:\t%.2f (deg)" % (self.alpha2)
-        
-        print "---- Volute casing design ----"
-        print "Volute Radius R3:\t%.2f (mm)" % (self.R3 * 1000)
-        print "Volute Width B3:\t%.2f (mm)" % (self.B3 * 1000)
-        print "Volute Hight T:\t%.2f (mm)" % (self.T * 1000)
-        print "Hth(Impeller):\t%.2f (m)" % (self.Hth_impeller)
-        print "Hth(Volute):\t%.2f (m)" % (self.Hth_volute)
-        print "Q when max efficiency:\t%.2f (m3/min)" % (self.flow_Q_max)
-        
+        print("==== 遠心ポンプ =====")
+        print("作動流体密度:\t%d (kg/m3)" % (self.density))
+        print("回転速度 N:\t%d (rpm)" % (self.rpm))
+        print("回転速度 N:\t%.1f (rad/s)" % (self.omega))
+        print("ポンプ吐出圧:\t%.1f (MPa)" % (self.press_out))
+        print("質量流量 Q:\t%.2f (m3/min)" % (self.flow_Q))
+        print("質量流量 q:\t%.2f (m3/sec)" % (self.flow_q))
+        print("全揚程 H:\t%.2f (m)" % (self.head_total))
+        print("比速度 Ns:\t%.1f (m min)" % (self.Ns))
+        print("Type Number K:\t%.2f" % (self.type_number))
+
+        print("---- インペラ入口設計 ----")
+        print("NPSH:\t\t%.2f (m)" % (self.NPSH))
+        print("tan(beta1):\t\t%.3f" % (self.tanbeta1))
+        print("Inlet beta1:\t%.2f (deg)" % (self.beta1))
+        print("suction sp. speed S:\t%.2f" % (self.S))
+        print("Required NPSH Hsv:\t%.2f (m)" % (self.head_sv))
+        print("Coef of Hsv: \t%.2f" % (self.coef_head_sv))
+        print("Inlet v1:\t\t%.3f (m/s)" % (self.v1))
+        print("Inlet w1:\t\t%.3f (m/s)" % (self.w1))
+#        print("Hsv from(18):\t%.2f (m)" % (self.head_sv2))
+        print("シュラウド直径 Ds:\t%.2f (mm)" % (self.Ds * 1000))
+        print("ハブ直径 Dh:\t%.2f (mm)" % (self.Dh * 1000))
+
+        print("---- インペラ出口設計 ----")
+        print("sqrt(D2/B2):\t%.2f" % (self.sqrtD2B2))
+        print("理論比速度 Ns_th:\t%.2f" % (self.Ns_th))
+        print("スリップ係数 sigma:\t%.2f" % (self.sigma))
+        print("Parameter chi:\t%.2f" % (self.chi))
+        print("外径 D2:\t%.2f (mm)" % (self.D2 * 1000))
+        print("外側幅 B2:\t%.2f (mm)" % (self.B2 * 1000))
+        print("Ku:\t\t%.3f" % (self.Ku))
+        print("Kc:\t\t%.3f" % (self.Kc))
+        print("Km:\t\t%.3f" % (self.Km))
+        print("Ka:\t\t%.3f" % (self.Ka))
+        print("Kw:\t\t%.3f" % (self.Kw))
+        print("Outer alpha2:\t%.2f (deg)" % (self.alpha2))
+
+        print("---- ボリュートケーシング設計 ----")
+        print("ボリュート半径 R3:\t%.2f (mm)" % (self.R3 * 1000))
+        print("ボリュート幅 B3:\t%.2f (mm)" % (self.B3 * 1000))
+        print("ボリュート高さ T:\t%.2f (mm)" % (self.T * 1000))
+        print("Hth(インペラ):\t%.2f (m)" % (self.Hth_impeller))
+        print("Hth(ボリュート):\t%.2f (m)" % (self.Hth_volute))
+        print("最大効率時のQ:\t%.2f (m3/min)" % (self.flow_Q_max))
+
     def plot_Non_dimensional_velocity_dia(self):
         """
         plot Non-dimensional velocity diagram
         """
         a = self.sqrt2gHth
         plt.figure()
-        plt.plot([0,a*self.Ku],[0,0],'k-')
-        plt.plot([0,a*self.Kc],[0,a*self.Km],'k-')
+        plt.quiver(0, 0, a*self.Ku, 0, angles='xy', scale_units='xy', scale=1)
+        plt.quiver(0, 0, a*self.Kc, a*self.Km, angles='xy', scale_units='xy', scale=1)
+        plt.quiver(a*self.Ku, 0, a*self.Kc + a*(self.k-1)*self.Ku, a*self.Km, angles='xy', scale_units='xy', scale=1)
+        # plt.plot([0,a*self.Ku],[0,0],'k-')
+        # plt.plot([0,a*self.Kc],[0,a*self.Km],'k-')
         plt.plot([a*self.Kc,a*self.Kc + a*self.k * self.Ku],[a*self.Km,a*self.Km],'k-')
         plt.plot([a*self.Kc + a*self.k*self.Ku, a*self.Ku],[a*self.Km,0],'k-')
         plt.axes().set_aspect('equal','datalim')
         plt.xlabel("circumferential direction velocity (m/s)")
         plt.ylabel("diametrical direction velocity (m/s)")
+        plt.grid()
         plt.title("velocity diagram")
-        plt.show()
-        
+        # plt.show()
+
     def plot_slip_factor_dia(self):
         """
         plot slip factor diagram
@@ -283,8 +295,8 @@ class Pump(object):
         plt.legend(loc=3)
         plt.grid()
 #        plt.axes().set_aspect('equal')
-        plt.show()
-        
+        # plt.show()
+
     def plot_D2B2forNs_dia(self):
         """
         plot Approximate sqrt{D2B2} value for Ns
@@ -306,14 +318,14 @@ class Pump(object):
                    [100,200,300,400,500,600,"",800,"",1000,"",1200])
         plt.yticks(np.arange(1,7,1),
                    [1,2,3,4,5,6,7])
-        plt.show()
-        
+        # plt.show()
+
 def main():
     plt.close('all')
     rocket = Rocket(200000, 230, 1.6)
     rocket.culc()
     rocket.show()
-    
+
     pump = Pump(rocket,"fuel")
     pump.culc_Ns()
     pump.design_size()
@@ -324,6 +336,7 @@ def main():
     pump.plot_Non_dimensional_velocity_dia()
     pump.plot_slip_factor_dia()
     pump.plot_D2B2forNs_dia()
+    plt.show()
 
 
 if __name__ == '__main__':
