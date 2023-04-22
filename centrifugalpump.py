@@ -2,30 +2,24 @@
 """
 遠心ポンプの設計ツール。参考値として、エタノール／液体酸素エンジンを想定。
 単段の遠心ポンプにのみ対応している。このツールは概算にのみ使用可能。
-Cf. ポンプ設計の基礎　武田裕久
+Cf. ポンプ設計の基礎 武田裕久
 Centrifugal Pump design tool with EA/LOX engine
 Only use for Sigle-stage certrifugal pump.
 It is limited the use of approximate culcuration.
 This script is New BSD License.
 cf. Basic Design on Pumps by Hirohisa Takeda
 """
-from __future__ import unicode_literals
-from __future__ import print_function
-from __future__ import division
 
 import numpy as np
-import scipy as sp
+from numpy import pi, log, exp, sqrt, sin, tan, arctan, rad2deg, deg2rad
 from scipy.optimize import fsolve
 from scipy.interpolate import UnivariateSpline
-#from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-#from matplotlib.font_manager import FontProperties
-#fp = FontProperties(fname=r'C:\WINDOWS\Fonts\TakaoPGothic.ttf') # HG ゴシック系
 
 __author__ = "Takahiro Inagawa <ina111meister_at_gmail.com>"
 __status__ = "beta"
 __version__ = "0.0.2"
-__date__    = "20 January 2014"
+__date__ = "20 January 2014"
 
 
 class Rocket(object):
@@ -34,15 +28,15 @@ class Rocket(object):
     It output mass flow rate when "thrust, Isp and O/F" are determined.
     """
     def __init__(self, thrust, Isp, OFratio):
-        self.g = 9.8066 #Gravitational acceleration
+        self.g = 9.8066  # Gravitational acceleration
         self.thrust = thrust
         self.Isp = Isp
         self.OFratio = OFratio
 
         # It must change when propellant is changed.
-        self.density_LOX = 1140.0 # kg/m3
-        self.density_EA = 789.0 # kg/m3
-        self.density_water = 1000.0 # kg/m3
+        self.density_LOX = 1140.0  # kg/m3
+        self.density_EA = 789.0  # kg/m3
+        self.density_water = 1000.0  # kg/m3
 
     def culc(self):
         self.mdot_proppelant = self.thrust / self.Isp / self.g
@@ -62,11 +56,12 @@ class Rocket(object):
         print("燃料質量流量:\t%.2f (kg/s)" % (self.mdot_fuel))
         print("燃料流量Q:\t%.4f (m3/s)" % (self.flow_fuel))
 
+
 class Pump(object):
     """
     Centrifugal Pump Class
     """
-    def __init__(self, rocket, working_fluid = "fuel"):
+    def __init__(self, rocket, working_fluid="fuel"):
         """
         @arg rocket: rocket class
         @arg working_fluid = "oxidant", "fuel" or "water"
@@ -79,15 +74,15 @@ class Pump(object):
         elif working_fluid == "water":
             self.density = rocket.density_water
         self.rpm = 16000
-        self.press_out = 3.0 #MPa
-        self.flow_q = 0.04 #m3/s
+        self.press_out = 3.0  # MPa
+        self.flow_q = 0.04  # m3/s
 
         self.head_total = self.press_out / self.density / rocket.g * (10 ** 6)
 
-        self.press_in = 0.1 #MPa
-        self.head_loss = 3 #m
-        self.head_v = 1.046862 #m
-        self.height_pump = 0 #m
+        self.press_in = 0.1  # MPa
+        self.head_loss = 3  # m
+        self.head_v = 1.046862  # m
+        self.height_pump = 0  # m
         """ Impeller size """
         self.D2 = 0.1
         """ efficiency, design constant """
@@ -107,7 +102,7 @@ class Pump(object):
         """
         Culcurate Specific speed Ns and type number
         """
-        self.omega = self.rpm / 60 * 2 * np.pi
+        self.omega = self.rpm / 60 * 2 * pi
         self.flow_Q = self.flow_q * 60
         self.Ns = self.rpm * (self.flow_Q ** 0.5) / (self.head_total ** 0.75)
         self.type_number = self.omega * self.flow_q**0.5 / (self.g * self.head_total)**0.75
@@ -130,26 +125,25 @@ class Pump(object):
         self.head_a = self.press_in / self.g / self.density * 10**6
         self.NPSH = self.head_a - self.height_pump - self.head_loss - self.head_v
 
-        self.tanbeta1 = (self.rambda1 / 2 / (self.rambda1 + self.rambda2)) **(0.5)
-        self.beta1 = np.rad2deg(np.arctan(self.tanbeta1))
+        self.tanbeta1 = (self.rambda1 / 2 / (self.rambda1 + self.rambda2))**(0.5)
+        self.beta1 = rad2deg(arctan(self.tanbeta1))
         self.S = 757.7 * (1 - self.hubratio**2)**0.5 \
-                 / ((self.rambda1**0.5) * (self.rambda1+self.rambda2)**0.25)
-        self.head_sv = (1.0/60)**2 * (4*np.pi)**(2./3) / 2 / self.g \
-                       * (self.rpm * np.sqrt(self.flow_Q) / (np.sqrt(1 - self.hubratio**2)) * self.tanbeta1) \
-                       * (self.rambda2 + self.rambda1 + self.rambda1 / self.tanbeta1 **2)
-        self.coef_head_sv = (self.rambda1 / np.sin(np.deg2rad(self.beta1))**2 \
-                            + self.rambda2) / 2 / self.g
-        self.v1 = self.rpm **(2./3) * self.flow_Q **(1./3) / 57.35
-        self.Ds = 1.1 / np.sqrt(1 - self.hubratio**2) * (self.flow_Q / self.rpm)**(1./3)
+            / ((self.rambda1**0.5) * (self.rambda1 + self.rambda2)**0.25)
+        self.head_sv = (1 / 60)**2 * (4 * pi)**(2 / 3) / 2 / self.g \
+            * (self.rpm * sqrt(self.flow_Q) / (sqrt(1 - self.hubratio**2)) * self.tanbeta1) \
+            * (self.rambda2 + self.rambda1 + self.rambda1 / self.tanbeta1**2)
+        self.coef_head_sv = (self.rambda1 / sin(deg2rad(self.beta1))**2 + self.rambda2) / 2 / self.g
+        self.v1 = self.rpm**(2 / 3) * self.flow_Q**(1 / 3) / 57.35
+        self.Ds = 1.1 / sqrt(1 - self.hubratio**2) * (self.flow_Q / self.rpm)**(1 / 3)
         self.Dh = self.Ds * self.hubratio
 
         """ test program """
-        self.w1 = self.v1 / np.sin(np.deg2rad(self.beta1))
+        self.w1 = self.v1 / sin(deg2rad(self.beta1))
         self.head_sv2 = self.rambda1 * self.w1**2 / 2 / self.g\
-                        + self.rambda2 * self.v1**2/ 2 / self.g
+            + self.rambda2 * self.v1**2 / 2 / self.g
 
     def _func(self, x):
-        return self.sigma * x**3 - 0.5 * x - self.chi**2 / np.tan(np.deg2rad(self.beta2))
+        return self.sigma * x**3 - 0.5 * x - self.chi**2 / tan(deg2rad(self.beta2))
 
     def design_outlet(self):
         """
@@ -157,27 +151,27 @@ class Pump(object):
         """
         x1 = [110, 200, 300, 400, 500, 600, 800, 1000, 1200]
         y1 = [5.2, 4.0, 3.2, 2.8, 2.5, 2.4, 2.0, 1.8, 1.75]
-        y2 = UnivariateSpline(x1,y1, k=5,s=1)
+        y2 = UnivariateSpline(x1, y1, k=5, s=1)
         self.sqrtD2B2 = y2(self.Ns_th)
-        self.B2 = self.D2 / self.sqrtD2B2 **2
+        self.B2 = self.D2 / self.sqrtD2B2 ** 2
         """ Slip factor """
-        self.epsilon_limit = 1 / np.exp(8.16 * np.sin(np.deg2rad(self.beta2)) / self.Z)
+        self.epsilon_limit = 1 / exp(8.16 * sin(deg2rad(self.beta2)) / self.Z)
         if self.R1R2ratio < self.epsilon_limit:
-            self.sigma = 1 - np.sqrt(np.sin(np.deg2rad(self.beta2))) / self.Z **0.7
+            self.sigma = 1 - sqrt(sin(deg2rad(self.beta2))) / self.Z ** 0.7
         else:
-            self.sigma = (1 - np.sqrt(np.sin(np.deg2rad(self.beta2))) / self.Z **0.7) \
-                         * (1 - ((self.R1R2ratio - self.epsilon_limit) / (1 - self.epsilon_limit))**3)
+            self.sigma = (1 - sqrt(sin(deg2rad(self.beta2))) / self.Z ** 0.7) \
+                * (1 - ((self.R1R2ratio - self.epsilon_limit) / (1 - self.epsilon_limit))**3)
         self.k = 1 - self.sigma
         """ Outlet Non-dimensional velocity """
         self.chi = self.Ns_th * self.sqrtD2B2 / 2320
-        self.Ku = fsolve(self._func, 1)
+        self.Ku = fsolve(self._func, 1)[0]
         self.Kc = 0.5 / self.Ku
         self.Km = (self.chi / self.Ku)**2
         self.Ka = (self.Kc**2 + self.Km**2)**0.5
-        self.Kw = self.Km / np.sin(np.deg2rad(self.beta2))
-        self.alpha2 = np.rad2deg(np.arctan(self.Km / self.Kc))
+        self.Kw = self.Km / sin(deg2rad(self.beta2))
+        self.alpha2 = rad2deg(arctan(self.Km / self.Kc))
         """ Outlet velocity """
-        self.sqrt2gHth = np.sqrt(2 * self.g * self.head_th)
+        self.sqrt2gHth = sqrt(2 * self.g * self.head_th)
         self.u2 = self.Ku * self.sqrt2gHth
         self.vm2 = self.Km * self.sqrt2gHth
         self.vu2 = self.Kc * self.sqrt2gHth
@@ -185,21 +179,21 @@ class Pump(object):
         self.w2 = self.Kw * self.sqrt2gHth
 
     def _func2(self, x):
-        return self.vu2 * self.R2 * x**2 - self.flow_Q/120 * x - self.R3 * self.flow_Q/60
+        return self.vu2 * self.R2 * x**2 - self.flow_Q / 120 * x - self.R3 * self.flow_Q / 60
 
     def design_volute(self):
         """
         design volute casing
         """
         self.R3 = self.R2 * 1.05
-        self.B3 = fsolve(self._func2, 1)
+        self.B3 = fsolve(self._func2, 1)[0]
         self.T = self.B3
         self.Hth_impeller = self.u2\
-                            * (self.sigma * self.u2 - self.vm2 / np.tan(np.deg2rad(self.beta2))) / self.g
-        self.Hth_volute = np.pi * self.rpm\
-                          / (1800*self.g*self.B3*np.log(1+self.T/self.R3))* self.flow_Q
-        self.flow_Q_max = 60 * self.sigma * self.u2 * (1/(np.pi*self.D2*self.B2*np.tan(np.deg2rad(self.beta2)))\
-                          + 1/(self.R2*self.B3*np.log(1+self.T/self.R3)))**-1
+            * (self.sigma * self.u2 - self.vm2 / tan(deg2rad(self.beta2))) / self.g
+        self.Hth_volute = pi * self.rpm\
+            / (1800 * self.g * self.B3 * log(1 + self.T / self.R3)) * self.flow_Q
+        self.flow_Q_max = 60 * self.sigma * self.u2 \
+            * (1 / (pi * self.D2 * self.B2 * tan(deg2rad(self.beta2))) + 1 / (self.R2 * self.B3 * np.log(1 + self.T / self.R3)))**-1
 
     def show(self):
         print("==== 遠心ポンプ =====")
@@ -249,53 +243,42 @@ class Pump(object):
         print("最大効率時のQ:\t%.2f (m3/min)" % (self.flow_Q_max))
 
     def plot_Non_dimensional_velocity_dia(self):
-        """
-        plot Non-dimensional velocity diagram
-        """
         a = self.sqrt2gHth
-        plt.figure()
-        plt.quiver(0, 0, a*self.Ku, 0, angles='xy', scale_units='xy', scale=1)
-        plt.quiver(0, 0, a*self.Kc, a*self.Km, angles='xy', scale_units='xy', scale=1)
-        plt.quiver(a*self.Ku, 0, a*self.Kc + a*(self.k-1)*self.Ku, a*self.Km, angles='xy', scale_units='xy', scale=1)
-        # plt.plot([0,a*self.Ku],[0,0],'k-')
-        # plt.plot([0,a*self.Kc],[0,a*self.Km],'k-')
-        plt.plot([a*self.Kc,a*self.Kc + a*self.k * self.Ku],[a*self.Km,a*self.Km],'k-')
-        plt.plot([a*self.Kc + a*self.k*self.Ku, a*self.Ku],[a*self.Km,0],'k-')
-        plt.axes().set_aspect('equal','datalim')
-        plt.xlabel("circumferential direction velocity (m/s)")
-        plt.ylabel("diametrical direction velocity (m/s)")
-        plt.grid()
-        plt.title("velocity diagram")
-        # plt.show()
+        fig, ax = plt.subplots()
+        ax.quiver(0, 0, a * self.Ku, 0, angles='xy', scale_units='xy', scale=1)
+        ax.quiver(0, 0, a * self.Kc, a * self.Km, angles='xy', scale_units='xy', scale=1)
+        ax.quiver(a * self.Ku, 0, a * self.Kc + a * (self.k - 1) * self.Ku, a * self.Km, angles='xy', scale_units='xy', scale=1)
+        ax.plot([a * self.Kc, a * self.Kc + a * self.k * self.Ku], [a * self.Km, a * self.Km], 'k-')
+        ax.plot([a * self.Kc + a * self.k * self.Ku, a * self.Ku], [a * self.Km, 0], 'k-')
+        ax.set_xlabel("circumferential direction velocity (m/s)")
+        ax.set_ylabel("diametrical direction velocity (m/s)")
+        ax.set_aspect('equal', 'datalim')
+        ax.grid()
+        ax.set_title("velocity diagram")
 
     def plot_slip_factor_dia(self):
-        """
-        plot slip factor diagram
-        """
         plt.figure()
         beta = 25
-        beta = np.deg2rad(beta)
-        array_R1R2 = np.linspace(0,1)
-        array_Z = np.array([2,4,8,16,32])
+        beta = deg2rad(beta)
+        array_R1R2 = np.linspace(0, 1)
+        array_Z = np.array([2, 4, 8, 16, 32])
         array_epsilon = np.zeros(len(array_Z))
-        array_sigma = np.zeros((len(array_Z),len(array_R1R2)))
+        array_sigma = np.zeros((len(array_Z), len(array_R1R2)))
         for z in range(len(array_Z)):
-            array_epsilon[z] = 1 / np.exp(8.16 * np.sin(beta) / array_Z[z])
+            array_epsilon[z] = 1 / exp(8.16 * sin(beta) / array_Z[z])
             for i in range(len(array_R1R2)):
                 if array_R1R2[i] < array_epsilon[z]:
-                    array_sigma[z][i] = 1 - np.sqrt(np.sin(beta)) / array_Z[z] **0.7
+                    array_sigma[z][i] = 1 - sqrt(sin(beta)) / array_Z[z] ** 0.7
                 else:
-                    array_sigma[z][i] = (1 - np.sqrt(np.sin(beta)) / array_Z[z] **0.7) \
-                         * (1 - ((array_R1R2[i] - array_epsilon[z]) / (1 - array_epsilon[z]))**3)
-            plt.plot(array_R1R2, array_sigma[z],label="Z=%d"%(array_Z[z]))
+                    array_sigma[z][i] = (1 - sqrt(sin(beta)) / array_Z[z] ** 0.7) \
+                        * (1 - ((array_R1R2[i] - array_epsilon[z]) / (1 - array_epsilon[z]))**3)
+            plt.plot(array_R1R2, array_sigma[z], label="Z=%d" % (array_Z[z]))
         plt.xlabel("R1/R2")
         plt.ylabel("sigama")
         plt.title(r"Slip factor diagram ($\beta_2$=25deg)")
-        plt.axis([0.0,1.0,0.0,1.0])
+        plt.axis([0.0, 1.0, 0.0, 1.0])
         plt.legend(loc=3)
         plt.grid()
-#        plt.axes().set_aspect('equal')
-        # plt.show()
 
     def plot_D2B2forNs_dia(self):
         """
@@ -303,30 +286,31 @@ class Pump(object):
         """
         x = [110, 200, 300, 400, 500, 600, 800, 1000, 1200]
         y = [5.2, 4.0, 3.2, 2.8, 2.5, 2.4, 2.0, 1.8, 1.75]
-        spline = UnivariateSpline(x,y, k=5,s=1)
-        Ns = np.linspace(110,1200)
+        spline = UnivariateSpline(x, y, k=5, s=1)
+        Ns = np.linspace(110, 1200)
         D2B2 = spline(Ns)
         plt.figure()
-        plt.loglog(Ns,D2B2)
+        plt.loglog(Ns, D2B2)
         plt.xlabel("Ns")
-        plt.ylabel(r" $\sqrt{D_2/B_2} $" )
+        plt.ylabel(r" $\sqrt{D_2/B_2} $")
         plt.title(r"Approximate $\sqrt{D_2/B_2}$ Value for Ns (Z=6)")
-        plt.xlim(100,1200)
-        plt.ylim(1,7)
-        plt.grid(True,which="both")
-        plt.xticks(np.arange(100,1200,100),
-                   [100,200,300,400,500,600,"",800,"",1000,"",1200])
-        plt.yticks(np.arange(1,7,1),
-                   [1,2,3,4,5,6,7])
+        plt.xlim(100, 1200)
+        plt.ylim(1, 7)
+        plt.grid(True, which="both")
+        plt.xticks(np.arange(100, 1300, 100),
+                   [100, 200, 300, 400, 500, 600, "", 800, "", 1000, "", 1200])
+        plt.yticks(np.arange(1, 8, 1),
+                   [1, 2, 3, 4, 5, 6, 7])
         # plt.show()
 
-def main():
+
+if __name__ == '__main__':
     plt.close('all')
     rocket = Rocket(200000, 230, 1.6)
     rocket.culc()
     rocket.show()
 
-    pump = Pump(rocket,"fuel")
+    pump = Pump(rocket, "fuel")
     pump.culc_Ns()
     pump.design_size()
     pump.design_inlet()
@@ -337,7 +321,3 @@ def main():
     pump.plot_slip_factor_dia()
     pump.plot_D2B2forNs_dia()
     plt.show()
-
-
-if __name__ == '__main__':
-    main()
